@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Chat Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>WhatsApp Chat & Media Viewer</header>
+    
+    <div class="controls">
+        <label for="zipFile" class="file-label">Upload .zip File</label>
+        <input type="file" id="zipFile" accept=".zip">
+        
+        <!-- NEW: Folder Upload Button -->
+        <label for="folderInput" class="file-label alt-btn">Upload Unzipped Folder</label>
+        <input type="file" id="folderInput" webkitdirectory directory>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search entire chat..." disabled>
+            <button id="searchBtn" disabled>Search</button>
+            <span id="searchResultText"></span>
+            <button id="prevBtn" title="Previous Result" disabled>↑</button>
+            <button id="nextBtn" title="Next Result" disabled>↓</button>
+            <button id="clearBtn" disabled>Clear</button>
+        </div>
+
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+        <span id="status-text">Select a .zip file or an extracted folder to start...</span>
+    </div>
+
+    <div id="chat-container"></div>
+
+    <script src="jszip.min.js"></script>
+    <script src="viewer.js"></script>
+</body>
+</html>
