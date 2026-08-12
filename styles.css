@@ -267,10 +267,3 @@ mark {
     transition: background-color 0.5s ease-out;
 }
 
-/* Alt Button Style for Folder Upload */
-.file-label.alt-btn {
-    background-color: #005c4b;
-}
-.file-label.alt-btn:hover {
-    background-color: #004a3c;
-}
