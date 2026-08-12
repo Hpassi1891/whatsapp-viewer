@@ -361,3 +361,19 @@ chatContainer.addEventListener('scroll', () => {
         renderNextBatch();
     }
 });
+
+// --- SEARCH BAR TOGGLE LOGIC ---
+const searchToggleBtn = document.getElementById('searchToggleBtn');
+const searchBoxContainer = document.getElementById('searchBoxContainer');
+
+searchToggleBtn.addEventListener('click', () => {
+    if (searchBoxContainer.style.display === 'none' || searchBoxContainer.style.display === '') {
+        searchBoxContainer.style.display = 'flex';
+        // Auto-focus the input if a file has been loaded
+        if (!searchInput.disabled) {
+            searchInput.focus();
+        }
+    } else {
+        searchBoxContainer.style.display = 'none';
+    }
+});
