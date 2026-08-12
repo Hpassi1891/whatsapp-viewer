@@ -1,9 +1,10 @@
 let parsedMessages = [];
-let currentlyRenderedIndex = 0;
+let currentTopRenderedIndex = 0;
+let currentBottomRenderedIndex = 0;
 const BATCH_SIZE = 300;
 let mediaMap = {}; 
 let lastParsedDate = null;
-let availableDates = []; // NEW: Tracks all dates for the dropdown
+let availableDates = [];
 
 // Search State Variables
 let searchResults = [];
@@ -21,6 +22,7 @@ const nextBtn = document.getElementById('nextBtn');
 const clearBtn = document.getElementById('clearBtn');
 const searchResultText = document.getElementById('searchResultText');
 const dateSelect = document.getElementById('dateSelect');
+const chatContainer = document.getElementById('chat-container');
 
 document.getElementById('zipFile').addEventListener('change', async function(e) {
     const file = e.target.files[0];
@@ -29,12 +31,12 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     const progressContainer = document.getElementById('progress-bar-container');
     const progressBar = document.getElementById('progress-bar');
     const statusText = document.getElementById('status-text');
-    const container = document.getElementById('chat-container');
 
-    container.innerHTML = '';
+    chatContainer.innerHTML = '';
     parsedMessages = [];
     availableDates = [];
-    currentlyRenderedIndex = 0;
+    currentTopRenderedIndex = 0;
+    currentBottomRenderedIndex = 0;
     mediaMap = {};
     lastParsedDate = null;
     
@@ -123,7 +125,6 @@ function processLine(line) {
         if (currentDate !== lastParsedDate) {
             lastParsedDate = currentDate;
             parsedMessages.push({ type: 'date', dateText: currentDate });
-            // Store the global index so we can jump straight to it
             availableDates.push({ text: currentDate, index: parsedMessages.length - 1 });
         }
         
@@ -139,9 +140,37 @@ function processLine(line) {
     }
 }
 
+// Helper to create a DOM node for a message
+function createMessageNode(item, i, highlightRegex) {
+    if (item.type === 'sys') {
+        const div = document.createElement('div');
+        div.className = 'system-msg';
+        div.innerText = item.text;
+        return div;
+    } else if (item.type === 'date') {
+        const div = document.createElement('div');
+        div.className = 'date-badge';
+        div.innerText = item.dateText;
+        return div;
+    } else {
+        const div = document.createElement('div');
+        div.className = `message ${item.isRight ? 'right' : 'left'}`;
+        div.id = `msg-${i}`; 
+
+        const senderSpan = `<span class="sender-name">${escapeHtml(item.sender)}</span>`;
+        const timeSpan = `<span class="time">${escapeHtml(item.timestamp)}</span>`;
+        const mediaContent = checkAndRenderMedia(item.text, highlightRegex);
+
+        div.innerHTML = senderSpan + mediaContent + timeSpan;
+        return div;
+    }
+}
+
+// Scroll Down: Renders the next 300 messages
 function renderNextBatch() {
-    const container = document.getElementById('chat-container');
-    const endIndex = Math.min(currentlyRenderedIndex + BATCH_SIZE, parsedMessages.length);
+    if (currentBottomRenderedIndex >= parsedMessages.length) return;
+
+    const endIndex = Math.min(currentBottomRenderedIndex + BATCH_SIZE, parsedMessages.length);
     const fragment = document.createDocumentFragment();
 
     let highlightRegex = null;
@@ -149,35 +178,41 @@ function renderNextBatch() {
         highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
     }
 
-    for (let i = currentlyRenderedIndex; i < endIndex; i++) {
-        const item = parsedMessages[i];
-
-        if (item.type === 'sys') {
-            const div = document.createElement('div');
-            div.className = 'system-msg';
-            div.innerText = item.text;
-            fragment.appendChild(div);
-        } else if (item.type === 'date') {
-            const div = document.createElement('div');
-            div.className = 'date-badge';
-            div.innerText = item.dateText;
-            fragment.appendChild(div);
-        } else {
-            const div = document.createElement('div');
-            div.className = `message ${item.isRight ? 'right' : 'left'}`;
-            div.id = `msg-${i}`; 
-
-            const senderSpan = `<span class="sender-name">${escapeHtml(item.sender)}</span>`;
-            const timeSpan = `<span class="time">${escapeHtml(item.timestamp)}</span>`;
-            const mediaContent = checkAndRenderMedia(item.text, highlightRegex);
-
-            div.innerHTML = senderSpan + mediaContent + timeSpan;
-            fragment.appendChild(div);
-        }
+    for (let i = currentBottomRenderedIndex; i < endIndex; i++) {
+        fragment.appendChild(createMessageNode(parsedMessages[i], i, highlightRegex));
     }
 
-    container.appendChild(fragment);
-    currentlyRenderedIndex = endIndex;
+    chatContainer.appendChild(fragment);
+    currentBottomRenderedIndex = endIndex;
+}
+
+// Scroll Up: Prepends the previous 300 messages
+function renderPrevBatch() {
+    if (currentTopRenderedIndex <= 0) return;
+
+    const startIndex = Math.max(0, currentTopRenderedIndex - BATCH_SIZE);
+    const endIndex = currentTopRenderedIndex;
+    const fragment = document.createDocumentFragment();
+
+    let highlightRegex = null;
+    if (activeQuery) {
+        highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
+    }
+
+    for (let i = startIndex; i < endIndex; i++) {
+        fragment.appendChild(createMessageNode(parsedMessages[i], i, highlightRegex));
+    }
+
+    // Measure heights to maintain smooth scroll position
+    const oldScrollHeight = chatContainer.scrollHeight;
+    const oldScrollTop = chatContainer.scrollTop;
+
+    chatContainer.prepend(fragment);
+
+    const newScrollHeight = chatContainer.scrollHeight;
+    chatContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+
+    currentTopRenderedIndex = startIndex;
 }
 
 function checkAndRenderMedia(text, highlightRegex) {
@@ -268,17 +303,15 @@ dateSelect.addEventListener('change', function(e) {
     const targetIndex = parseInt(e.target.value);
     if (isNaN(targetIndex)) return;
 
-    // Clear search UI if jumping by date
     clearSearchUI();
     
-    const container = document.getElementById('chat-container');
-    container.innerHTML = '';
+    chatContainer.innerHTML = '';
     
-    currentlyRenderedIndex = targetIndex;
+    currentTopRenderedIndex = targetIndex;
+    currentBottomRenderedIndex = targetIndex;
     renderNextBatch();
     
-    // Smoothly ensure we are at the top of the newly rendered container
-    container.scrollTop = 0;
+    chatContainer.scrollTop = 0;
 });
 
 // --- SEARCH ENGINE LOGIC ---
@@ -333,15 +366,17 @@ function clearSearchUI() {
 function jumpToCurrentSearchResult() {
     const targetGlobalIndex = searchResults[currentSearchIndex];
     
-    const container = document.getElementById('chat-container');
-    container.innerHTML = '';
+    chatContainer.innerHTML = '';
     
-    currentlyRenderedIndex = Math.max(0, targetGlobalIndex - 10);
+    // Jump to the result but give 50 messages of context above it
+    currentTopRenderedIndex = Math.max(0, targetGlobalIndex - 50);
+    currentBottomRenderedIndex = currentTopRenderedIndex;
     renderNextBatch();
     
     const targetEl = document.getElementById(`msg-${targetGlobalIndex}`);
     if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Use 'auto' instead of 'smooth' to prevent layout shifting on heavy renders
+        targetEl.scrollIntoView({ behavior: 'auto', block: 'center' });
         
         targetEl.classList.add('target-msg');
         setTimeout(() => {
@@ -375,9 +410,9 @@ prevBtn.addEventListener('click', () => {
 
 clearBtn.addEventListener('click', () => {
     clearSearchUI();
-    const container = document.getElementById('chat-container');
-    container.innerHTML = '';
-    currentlyRenderedIndex = 0;
+    chatContainer.innerHTML = '';
+    currentTopRenderedIndex = 0;
+    currentBottomRenderedIndex = 0;
     renderNextBatch();
 });
 
@@ -394,12 +429,17 @@ searchToggleBtn.addEventListener('click', () => {
     }
 });
 
-// --- INFINITE SCROLL LOGIC ---
-const chatContainer = document.getElementById('chat-container');
+// --- BIDIRECTIONAL INFINITE SCROLL ---
 chatContainer.addEventListener('scroll', () => {
-    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
-    
-    if (isNearBottom && currentlyRenderedIndex < parsedMessages.length) {
+    // 1. Check if scrolling down near the bottom
+    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
+    if (isNearBottom && currentBottomRenderedIndex < parsedMessages.length) {
         renderNextBatch();
+    }
+
+    // 2. Check if scrolling up near the top
+    const isNearTop = chatContainer.scrollTop <= 150;
+    if (isNearTop && currentTopRenderedIndex > 0) {
+        renderPrevBatch();
     }
 });
