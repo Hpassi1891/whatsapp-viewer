@@ -97,16 +97,26 @@ input[type="file"] {
     border-top-right-radius: 0;
 }
 
+/* Hide sender names completely for 1-on-1 chats */
 .sender-name {
-    font-size: 12.8px;
-    font-weight: 500;
-    color: #d15c7e;
-    margin-bottom: 4px;
-    display: block;
+    display: none; 
 }
 
-.right .sender-name {
-    display: none;
+/* Date Jumper Styles */
+#dateSelect {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #d1d7db;
+    font-size: 14px;
+    outline: none;
+    background-color: #fff;
+    cursor: pointer;
+    color: #54656f;
+    font-weight: 500;
+}
+#dateSelect:disabled {
+    background-color: #e9edef;
+    cursor: not-allowed;
 }
 
 .msg-text {
