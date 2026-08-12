@@ -4,7 +4,7 @@ let currentBottomRenderedIndex = 0;
 const BATCH_SIZE = 300;
 let mediaMap = {}; 
 let lastParsedDate = null;
-let availableDates = [];
+let dateIndexMap = {}; // Maps YYYY-MM-DD to the global message index
 
 // Search State Variables
 let searchResults = [];
@@ -21,8 +21,9 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearBtn = document.getElementById('clearBtn');
 const searchResultText = document.getElementById('searchResultText');
-const dateSelect = document.getElementById('dateSelect');
+const datePicker = document.getElementById('datePicker');
 const chatContainer = document.getElementById('chat-container');
+const toastMsg = document.getElementById('toast-msg');
 
 document.getElementById('zipFile').addEventListener('change', async function(e) {
     const file = e.target.files[0];
@@ -34,7 +35,7 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
 
     chatContainer.innerHTML = '';
     parsedMessages = [];
-    availableDates = [];
+    dateIndexMap = {};
     currentTopRenderedIndex = 0;
     currentBottomRenderedIndex = 0;
     mediaMap = {};
@@ -42,9 +43,9 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     
     searchInput.disabled = true;
     searchBtn.disabled = true;
-    dateSelect.disabled = true;
+    datePicker.disabled = true;
+    datePicker.value = '';
     clearSearchUI();
-    dateSelect.innerHTML = '<option value="">Jump to Date...</option>';
 
     progressContainer.style.display = 'block';
     statusText.innerText = 'Unzipping archive...';
@@ -87,20 +88,19 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
         const lines = textContent.split('\n');
         lines.forEach(line => processLine(line.trim()));
 
-        // Populate Date Dropdown
-        availableDates.forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d.index;
-            opt.innerText = d.text;
-            dateSelect.appendChild(opt);
-        });
-
         progressBar.style.width = '100%';
         statusText.innerText = `Loaded ${parsedMessages.length.toLocaleString()} items.`;
         
         searchInput.disabled = false;
         searchBtn.disabled = false;
-        dateSelect.disabled = false;
+        datePicker.disabled = false;
+
+        // Set calendar limits based on the chat's first and last dates
+        const allDates = Object.keys(dateIndexMap).sort();
+        if (allDates.length > 0) {
+            datePicker.min = allDates[0];
+            datePicker.max = allDates[allDates.length - 1];
+        }
         
         setTimeout(() => {
             progressContainer.style.display = 'none';
@@ -112,6 +112,28 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
         alert('Failed to process zip file. Make sure it is a valid ZIP archive.');
     }
 });
+
+// Helper to convert WhatsApp dates to HTML standard YYYY-MM-DD
+function normalizeDate(waDateStr) {
+    const parts = waDateStr.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+        let p1 = parseInt(parts[0], 10);
+        let p2 = parseInt(parts[1], 10);
+        let year = parts[2].trim();
+        
+        if (year.length === 2) year = "20" + year;
+        
+        let day = p1, month = p2;
+        if (p1 > 12) { day = p1; month = p2; } 
+        else if (p2 > 12) { day = p2; month = p1; }
+
+        let dStr = day.toString().padStart(2, '0');
+        let mStr = month.toString().padStart(2, '0');
+        
+        return `${year}-${mStr}-${dStr}`;
+    }
+    return null;
+}
 
 function processLine(line) {
     if (!line) return;
@@ -125,7 +147,12 @@ function processLine(line) {
         if (currentDate !== lastParsedDate) {
             lastParsedDate = currentDate;
             parsedMessages.push({ type: 'date', dateText: currentDate });
-            availableDates.push({ text: currentDate, index: parsedMessages.length - 1 });
+            
+            // Map the standardized date string to this message's index
+            const normDate = normalizeDate(currentDate);
+            if (normDate && dateIndexMap[normDate] === undefined) {
+                dateIndexMap[normDate] = parsedMessages.length - 1;
+            }
         }
         
         const isRight = sender.toLowerCase().includes('himanshu');
@@ -140,7 +167,6 @@ function processLine(line) {
     }
 }
 
-// Helper to create a DOM node for a message
 function createMessageNode(item, i, highlightRegex) {
     if (item.type === 'sys') {
         const div = document.createElement('div');
@@ -166,52 +192,40 @@ function createMessageNode(item, i, highlightRegex) {
     }
 }
 
-// Scroll Down: Renders the next 300 messages
 function renderNextBatch() {
     if (currentBottomRenderedIndex >= parsedMessages.length) return;
-
     const endIndex = Math.min(currentBottomRenderedIndex + BATCH_SIZE, parsedMessages.length);
     const fragment = document.createDocumentFragment();
 
     let highlightRegex = null;
-    if (activeQuery) {
-        highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
-    }
+    if (activeQuery) highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
 
     for (let i = currentBottomRenderedIndex; i < endIndex; i++) {
         fragment.appendChild(createMessageNode(parsedMessages[i], i, highlightRegex));
     }
-
     chatContainer.appendChild(fragment);
     currentBottomRenderedIndex = endIndex;
 }
 
-// Scroll Up: Prepends the previous 300 messages
 function renderPrevBatch() {
     if (currentTopRenderedIndex <= 0) return;
-
     const startIndex = Math.max(0, currentTopRenderedIndex - BATCH_SIZE);
     const endIndex = currentTopRenderedIndex;
     const fragment = document.createDocumentFragment();
 
     let highlightRegex = null;
-    if (activeQuery) {
-        highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
-    }
+    if (activeQuery) highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
 
     for (let i = startIndex; i < endIndex; i++) {
         fragment.appendChild(createMessageNode(parsedMessages[i], i, highlightRegex));
     }
 
-    // Measure heights to maintain smooth scroll position
     const oldScrollHeight = chatContainer.scrollHeight;
     const oldScrollTop = chatContainer.scrollTop;
-
     chatContainer.prepend(fragment);
-
+    
     const newScrollHeight = chatContainer.scrollHeight;
     chatContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
-
     currentTopRenderedIndex = startIndex;
 }
 
@@ -298,20 +312,34 @@ function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
 
-// --- JUMP TO DATE LOGIC ---
-dateSelect.addEventListener('change', function(e) {
-    const targetIndex = parseInt(e.target.value);
-    if (isNaN(targetIndex)) return;
+// --- NEW CALENDAR JUMP LOGIC ---
+function showToast() {
+    toastMsg.classList.add('show');
+    setTimeout(() => {
+        toastMsg.classList.remove('show');
+    }, 1500); // Wait 1.5s then fade out
+}
 
-    clearSearchUI();
-    
-    chatContainer.innerHTML = '';
-    
-    currentTopRenderedIndex = targetIndex;
-    currentBottomRenderedIndex = targetIndex;
-    renderNextBatch();
-    
-    chatContainer.scrollTop = 0;
+datePicker.addEventListener('change', function(e) {
+    const selectedDate = e.target.value; // Format: YYYY-MM-DD
+    if (!selectedDate) return;
+
+    if (dateIndexMap[selectedDate] !== undefined) {
+        // Date found! Jump to it.
+        const targetIndex = dateIndexMap[selectedDate];
+        clearSearchUI();
+        
+        chatContainer.innerHTML = '';
+        currentTopRenderedIndex = targetIndex;
+        currentBottomRenderedIndex = targetIndex;
+        renderNextBatch();
+        
+        chatContainer.scrollTop = 0;
+    } else {
+        // Date not found in chat memory
+        showToast();
+        datePicker.value = ''; // Reset the input
+    }
 });
 
 // --- SEARCH ENGINE LOGIC ---
@@ -365,19 +393,15 @@ function clearSearchUI() {
 
 function jumpToCurrentSearchResult() {
     const targetGlobalIndex = searchResults[currentSearchIndex];
-    
     chatContainer.innerHTML = '';
     
-    // Jump to the result but give 50 messages of context above it
     currentTopRenderedIndex = Math.max(0, targetGlobalIndex - 50);
     currentBottomRenderedIndex = currentTopRenderedIndex;
     renderNextBatch();
     
     const targetEl = document.getElementById(`msg-${targetGlobalIndex}`);
     if (targetEl) {
-        // Use 'auto' instead of 'smooth' to prevent layout shifting on heavy renders
         targetEl.scrollIntoView({ behavior: 'auto', block: 'center' });
-        
         targetEl.classList.add('target-msg');
         setTimeout(() => {
             targetEl.classList.remove('target-msg');
@@ -387,9 +411,7 @@ function jumpToCurrentSearchResult() {
 
 searchBtn.addEventListener('click', executeSearch);
 searchInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        executeSearch();
-    }
+    if (e.key === 'Enter') executeSearch();
 });
 
 nextBtn.addEventListener('click', () => {
@@ -431,13 +453,11 @@ searchToggleBtn.addEventListener('click', () => {
 
 // --- BIDIRECTIONAL INFINITE SCROLL ---
 chatContainer.addEventListener('scroll', () => {
-    // 1. Check if scrolling down near the bottom
     const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
     if (isNearBottom && currentBottomRenderedIndex < parsedMessages.length) {
         renderNextBatch();
     }
 
-    // 2. Check if scrolling up near the top
     const isNearTop = chatContainer.scrollTop <= 150;
     if (isNearTop && currentTopRenderedIndex > 0) {
         renderPrevBatch();
