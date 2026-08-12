@@ -1,7 +1,6 @@
 let parsedMessages = [];
 let currentlyRenderedIndex = 0;
 const BATCH_SIZE = 300;
-let user1 = null;
 let mediaMap = {}; 
 let lastParsedDate = null;
 
@@ -33,11 +32,9 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     container.innerHTML = '';
     parsedMessages = [];
     currentlyRenderedIndex = 0;
-    user1 = null;
     mediaMap = {};
     lastParsedDate = null;
     
-    // Reset search
     searchInput.disabled = true;
     searchBtn.disabled = true;
     clearSearchUI();
@@ -116,8 +113,11 @@ function processLine(line) {
                 parsedMessages.push({ type: 'date', dateText: currentDate });
             }
         }
-        if (!user1) user1 = sender;
-        parsedMessages.push({ type: 'msg', timestamp: timestamp, sender: sender, text: text, isRight: sender !== user1 });
+        
+        // HARDCODED IDENTITY: Rakshas is always on the right.
+        const isRight = sender.toLowerCase().includes('rakshas');
+        
+        parsedMessages.push({ type: 'msg', timestamp: timestamp, sender: sender, text: text, isRight: isRight });
     } else {
         const sysMatch = line.match(sysRegex);
         if (sysMatch && parsedMessages.length === 0) {
@@ -170,17 +170,52 @@ function renderNextBatch() {
 }
 
 function checkAndRenderMedia(text, highlightRegex) {
+    let quotedHTML = '';
+    let processingText = text;
+    
+    // Parse Android-style Quotes
+    if (processingText.startsWith('> ')) {
+        const lines = processingText.split('\n');
+        let quoteLines = [];
+        let replyLines = [];
+        let isQuote = true;
+        
+        for (let l of lines) {
+            if (isQuote && l.startsWith('> ')) {
+                quoteLines.push(l.substring(2));
+            } else if (isQuote && l.startsWith('>')) { 
+                quoteLines.push(l.substring(1));
+            } else {
+                isQuote = false;
+                replyLines.push(l);
+            }
+        }
+        if (quoteLines.length > 0) {
+            quotedHTML = `<div class="quoted-msg">${escapeHtml(quoteLines.join('\n'))}</div>`;
+            processingText = replyLines.join('\n').trim();
+        }
+    } 
+    // Parse iOS-style Quotes
+    else if (processingText.startsWith('“') && processingText.includes('”\n')) {
+        const splitIndex = processingText.indexOf('”\n');
+        const quotePart = processingText.substring(1, splitIndex);
+        const replyPart = processingText.substring(splitIndex + 2);
+        
+        quotedHTML = `<div class="quoted-msg">${escapeHtml(quotePart)}</div>`;
+        processingText = replyPart.trim();
+    }
+
     let renderedMedia = '';
     let foundMediaKey = null;
 
     for (let key of Object.keys(mediaMap)) {
-        if (text.includes(key)) {
+        if (processingText.includes(key)) {
             foundMediaKey = key;
             break;
         }
     }
 
-    let cleanText = text;
+    let cleanText = processingText;
     if (foundMediaKey) {
         const mediaUrl = mediaMap[foundMediaKey];
         const ext = foundMediaKey.split('.').pop().toLowerCase();
@@ -194,15 +229,18 @@ function checkAndRenderMedia(text, highlightRegex) {
         } else {
             renderedMedia += `<a href="${mediaUrl}" download="${foundMediaKey}" class="doc-link">📄 ${escapeHtml(foundMediaKey)}</a>`;
         }
-        cleanText = text.replace(foundMediaKey, '').replace('(file attached)', '').replace('<attached:', '').replace('>', '').trim();
+        cleanText = processingText.replace(foundMediaKey, '').replace('(file attached)', '').replace('<attached:', '').replace('>', '').trim();
     }
 
-    if (cleanText) {
+    if (cleanText || quotedHTML) {
         let escapedText = escapeHtml(cleanText);
-        if (highlightRegex) {
+        if (highlightRegex && escapedText) {
             escapedText = escapedText.replace(highlightRegex, '<mark>$1</mark>');
         }
-        renderedMedia += `<span class="msg-text">${escapedText}</span>`;
+        renderedMedia += quotedHTML;
+        if (escapedText) {
+            renderedMedia += `<span class="msg-text">${escapedText}</span>`;
+        }
     }
 
     return renderedMedia;
