@@ -115,7 +115,7 @@ function processLine(line) {
         }
         
         // HARDCODED IDENTITY: Rakshas is always on the right.
-        const isRight = sender.toLowerCase().includes('rakshas');
+        const isRight = sender.toLowerCase().includes('himanshu');
         
         parsedMessages.push({ type: 'msg', timestamp: timestamp, sender: sender, text: text, isRight: isRight });
     } else {
