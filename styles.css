@@ -102,22 +102,7 @@ input[type="file"] {
     display: none; 
 }
 
-/* Date Jumper Styles */
-#dateSelect {
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #d1d7db;
-    font-size: 14px;
-    outline: none;
-    background-color: #fff;
-    cursor: pointer;
-    color: #54656f;
-    font-weight: 500;
-}
-#dateSelect:disabled {
-    background-color: #e9edef;
-    cursor: not-allowed;
-}
+
 
 .msg-text {
     white-space: pre-wrap;
@@ -325,6 +310,47 @@ mark {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Calendar Picker Styles */
+#datePicker {
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d7db;
+    font-size: 14px;
+    outline: none;
+    background-color: #fff;
+    cursor: pointer;
+    color: #54656f;
+    font-weight: 500;
+    font-family: inherit;
+}
+#datePicker:disabled {
+    background-color: #e9edef;
+    cursor: not-allowed;
+}
+
+/* 1-Second Error Toast */
+#toast-msg {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background-color: #ff5252;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+#toast-msg.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
 /* --- Mobile Screen Optimization --- */
