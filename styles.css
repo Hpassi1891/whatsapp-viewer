@@ -181,19 +181,24 @@ audio.media-preview {
     background-color: #008f70;
 }
 
-/* Centered Date Badge */
+/* Centered Date Badge (Now Sticky!) */
 .date-badge {
     align-self: center;
-    background-color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.95); /* Slight transparency */
     color: #54656f;
     font-size: 12px;
     font-weight: 500;
     padding: 5px 12px;
     border-radius: 7.5px;
     margin: 12px 0;
-    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+    box-shadow: 0 1px 1px rgba(11,20,26,.13);
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    
+    /* Sticky positioning */
+    position: sticky;
+    top: 10px;
+    z-index: 100;
 }
 
 /* Search Bar Styles */
