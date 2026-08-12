@@ -100,87 +100,6 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     }
 });
 
-// --- NEW: FOLDER UPLOAD LOGIC ---
-document.getElementById('folderInput').addEventListener('change', async function(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const progressContainer = document.getElementById('progress-bar-container');
-    const progressBar = document.getElementById('progress-bar');
-    const statusText = document.getElementById('status-text');
-    const container = document.getElementById('chat-container');
-
-    // Reset UI and Data
-    container.innerHTML = '';
-    parsedMessages = [];
-    currentlyRenderedIndex = 0;
-    user1 = null;
-    mediaMap = {};
-    lastParsedDate = null;
-    searchInput.disabled = true;
-    searchBtn.disabled = true;
-    clearSearchUI();
-
-    progressContainer.style.display = 'block';
-    statusText.innerText = 'Scanning folder contents...';
-    progressBar.style.width = '30%';
-
-    let chatFile = null;
-    let processedFiles = 0;
-
-    // Map the files provided by the folder upload
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const cleanFileName = file.name;
-
-        if (cleanFileName.endsWith('.txt') && !cleanFileName.startsWith('.')) {
-            chatFile = file;
-        } else {
-            // Create object URL directly from the local file
-            mediaMap[cleanFileName] = URL.createObjectURL(file);
-        }
-
-        processedFiles++;
-        const pct = Math.round((processedFiles / files.length) * 40) + 30; // Scale from 30% to 70%
-        progressBar.style.width = pct + '%';
-        statusText.innerText = `Mapping files (${processedFiles}/${files.length})...`;
-    }
-
-    if (!chatFile) {
-        alert('No .txt chat file found inside the selected folder.');
-        statusText.innerText = 'Error: Chat text file missing.';
-        progressContainer.style.display = 'none';
-        return;
-    }
-
-    statusText.innerText = 'Parsing chat messages...';
-    progressBar.style.width = '85%';
-
-    try {
-        // Read the text file directly
-        const textContent = await chatFile.text();
-        const lines = textContent.split('\n');
-        
-        lines.forEach(line => processLine(line.trim()));
-
-        progressBar.style.width = '100%';
-        statusText.innerText = `Loaded ${parsedMessages.length.toLocaleString()} items.`;
-        
-        searchInput.disabled = false;
-        searchBtn.disabled = false;
-        
-        setTimeout(() => {
-            progressContainer.style.display = 'none';
-        }, 1000);
-
-        renderNextBatch();
-    } catch (err) {
-        console.error(err);
-        alert('Failed to read the chat text file.');
-        statusText.innerText = 'Error reading file.';
-    }
-});
-
 function processLine(line) {
     if (!line) return;
     const match = line.match(msgRegex);
@@ -216,7 +135,6 @@ function renderNextBatch() {
 
     let highlightRegex = null;
     if (activeQuery) {
-        // Create regex to highlight text regardless of upper/lower case
         highlightRegex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
     }
 
@@ -236,7 +154,7 @@ function renderNextBatch() {
         } else {
             const div = document.createElement('div');
             div.className = `message ${item.isRight ? 'right' : 'left'}`;
-            div.id = `msg-${i}`; // Attach global index ID for jumping
+            div.id = `msg-${i}`; 
 
             const senderSpan = `<span class="sender-name">${escapeHtml(item.sender)}</span>`;
             const timeSpan = `<span class="time">${escapeHtml(item.timestamp)}</span>`;
@@ -281,7 +199,6 @@ function checkAndRenderMedia(text, highlightRegex) {
 
     if (cleanText) {
         let escapedText = escapeHtml(cleanText);
-        // Apply highlight markup if regex is active
         if (highlightRegex) {
             escapedText = escapedText.replace(highlightRegex, '<mark>$1</mark>');
         }
@@ -296,11 +213,10 @@ function escapeHtml(str) {
 }
 
 function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapes special characters for regex
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
 
 // --- SEARCH ENGINE LOGIC ---
-
 function executeSearch() {
     const query = searchInput.value.trim();
     if (!query) return;
@@ -311,7 +227,6 @@ function executeSearch() {
 
     const lowerQuery = query.toLowerCase();
 
-    // Map all indices where the text occurs
     for (let i = 0; i < parsedMessages.length; i++) {
         const item = parsedMessages[i];
         if (item.type === 'msg' && item.text.toLowerCase().includes(lowerQuery)) {
@@ -353,19 +268,16 @@ function clearSearchUI() {
 function jumpToCurrentSearchResult() {
     const targetGlobalIndex = searchResults[currentSearchIndex];
     
-    // Clear DOM and load messages slightly before the target for context
     const container = document.getElementById('chat-container');
     container.innerHTML = '';
     
     currentlyRenderedIndex = Math.max(0, targetGlobalIndex - 10);
     renderNextBatch();
     
-    // Smooth scroll to the specific element
     const targetEl = document.getElementById(`msg-${targetGlobalIndex}`);
     if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        // Temporarily highlight the bubble so the user's eye goes straight to it
         targetEl.classList.add('target-msg');
         setTimeout(() => {
             targetEl.classList.remove('target-msg');
@@ -373,7 +285,6 @@ function jumpToCurrentSearchResult() {
     }
 }
 
-// Button and Enter Key Listeners
 searchBtn.addEventListener('click', executeSearch);
 searchInput.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
@@ -399,14 +310,12 @@ prevBtn.addEventListener('click', () => {
 
 clearBtn.addEventListener('click', () => {
     clearSearchUI();
-    // Reset view to the top of the chat
     const container = document.getElementById('chat-container');
     container.innerHTML = '';
     currentlyRenderedIndex = 0;
     renderNextBatch();
 });
 
-// Infinite scroll handler
 const chatContainer = document.getElementById('chat-container');
 chatContainer.addEventListener('scroll', () => {
     const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
