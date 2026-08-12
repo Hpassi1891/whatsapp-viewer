@@ -12,7 +12,16 @@
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <header>WhatsApp Chat & Media Viewer</header>
+    <header style="display: flex; align-items: center; gap: 12px; padding: 10px 20px;">
+        <!-- Default Profile Avatar -->
+        <div style="width: 38px; height: 38px; background: #ccc; border-radius: 50%; overflow: hidden;">
+            <svg viewBox="0 0 24 24" fill="#fff" style="width: 100%; height: 100%; margin-top: 6px;"><path d="M12 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm9 11a1 1 0 0 1-2 0c0-2.76-2.69-5-7-5s-7 2.24-7 5a1 1 0 0 1-2 0c0-3.87 3.58-7 9-7s9 3.13 9 7z"/></svg>
+        </div>
+        <div style="line-height: 1.2;">
+            <div style="font-size: 17px; font-weight: 500;">Chudail</div>
+            <div style="font-size: 12px; opacity: 0.8;">tap here for contact info</div>
+        </div>
+    </header>
     
     <div class="controls">
         <label for="zipFile" class="file-label">Upload .zip File</label>
@@ -27,10 +36,15 @@
             <button id="clearBtn" disabled>Clear</button>
         </div>
 
-        <div id="progress-bar-container">
+        <!-- Identity Badge -->
+        <div style="margin-left: auto; font-size: 14px; color: #54656f; font-weight: 500; background: #fff; padding: 6px 12px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+            👤 You: <b style="color: #00a884;">Rakshas</b>
+        </div>
+
+        <div id="progress-bar-container" style="width: 100%; margin-top: 10px;">
             <div id="progress-bar"></div>
         </div>
-        <span id="status-text">Select your exported WhatsApp .zip file to start...</span>
+        <span id="status-text" style="width: 100%; margin-top: 5px;">Select your exported WhatsApp .zip file to start...</span>
     </div>
 
     <div id="chat-container"></div>
