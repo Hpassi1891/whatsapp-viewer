@@ -29,10 +29,8 @@
         <!-- Search Toggle -->
         <button id="searchToggleBtn" title="Toggle Search">🔍</button>
         
-        <!-- NEW: Date Jumper Dropdown -->
-        <select id="dateSelect" disabled>
-            <option value="">Jump to Date...</option>
-        </select>
+        <!-- NEW: Calendar Date Picker -->
+        <input type="date" id="datePicker" disabled title="Select a date to jump">
 
         <div style="margin-left: auto; font-size: 13px; color: #54656f; font-weight: 500; background: #fff; padding: 6px 10px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
             👤 <b style="color: #00a884;">Himanshu</b>
@@ -54,6 +52,9 @@
     </div>
 
     <div id="chat-container"></div>
+    
+    <!-- NEW: Pop-up Error Message -->
+    <div id="toast-msg">No chats available on the entered date</div>
 
     <script src="jszip.min.js"></script>
     <script src="viewer.js"></script>
