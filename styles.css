@@ -291,3 +291,53 @@ mark {
     border-left-color: #029676;
     background-color: rgba(0, 0, 0, 0.06);
 }
+
+/* --- Search Toggle & Animation --- */
+#searchToggleBtn {
+    background: #fff;
+    border: 1px solid #d1d7db;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+#searchBoxContainer {
+    display: none; /* Hidden until toggled */
+    width: 100%;
+    margin-top: 10px;
+    animation: fadeIn 0.2s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Mobile Screen Optimization --- */
+@media (max-width: 600px) {
+    #chat-container {
+        padding: 15px 4%; /* Much less empty space on the sides */
+    }
+    .message {
+        max-width: 88%; /* Allow bubbles to be wider */
+        font-size: 14.8px; /* Slightly larger text for readability */
+    }
+    .controls {
+        padding: 10px 15px;
+        gap: 8px;
+    }
+    .search-box {
+        justify-content: space-between;
+    }
+    .search-box input {
+        flex: 1 1 100%; /* Force input to take a full row on mobile */
+        margin-bottom: 8px;
+    }
+    .media-preview {
+        max-height: 250px; /* Don't let tall images overtake the phone screen */
+    }
+}
