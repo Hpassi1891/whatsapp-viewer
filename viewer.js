@@ -4,7 +4,7 @@ let currentBottomRenderedIndex = 0;
 const BATCH_SIZE = 300;
 let mediaMap = {}; 
 let lastParsedDate = null;
-let dateIndexMap = {}; // Maps YYYY-MM-DD to the global message index
+let dateIndexMap = {}; 
 
 // Search State Variables
 let searchResults = [];
@@ -48,6 +48,8 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     clearSearchUI();
 
     progressContainer.style.display = 'block';
+    // Make sure status text is visible again for a new upload
+    statusText.style.display = 'block'; 
     statusText.innerText = 'Unzipping archive...';
     progressBar.style.width = '10%';
 
@@ -95,16 +97,21 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
         searchBtn.disabled = false;
         datePicker.disabled = false;
 
-        // Set calendar limits based on the chat's first and last dates
         const allDates = Object.keys(dateIndexMap).sort();
         if (allDates.length > 0) {
             datePicker.min = allDates[0];
             datePicker.max = allDates[allDates.length - 1];
         }
         
+        // Hide progress bar after 1 second
         setTimeout(() => {
             progressContainer.style.display = 'none';
         }, 1000);
+
+        // NEW: Hide status text after 5 seconds
+        setTimeout(() => {
+            statusText.style.display = 'none';
+        }, 5000);
 
         renderNextBatch();
 
@@ -113,7 +120,6 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     }
 });
 
-// Helper to convert WhatsApp dates to HTML standard YYYY-MM-DD
 function normalizeDate(waDateStr) {
     const parts = waDateStr.split(/[\/\-\.]/);
     if (parts.length === 3) {
@@ -148,7 +154,6 @@ function processLine(line) {
             lastParsedDate = currentDate;
             parsedMessages.push({ type: 'date', dateText: currentDate });
             
-            // Map the standardized date string to this message's index
             const normDate = normalizeDate(currentDate);
             if (normDate && dateIndexMap[normDate] === undefined) {
                 dateIndexMap[normDate] = parsedMessages.length - 1;
@@ -312,20 +317,18 @@ function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
 
-// --- NEW CALENDAR JUMP LOGIC ---
 function showToast() {
     toastMsg.classList.add('show');
     setTimeout(() => {
         toastMsg.classList.remove('show');
-    }, 1500); // Wait 1.5s then fade out
+    }, 1500); 
 }
 
 datePicker.addEventListener('change', function(e) {
-    const selectedDate = e.target.value; // Format: YYYY-MM-DD
+    const selectedDate = e.target.value; 
     if (!selectedDate) return;
 
     if (dateIndexMap[selectedDate] !== undefined) {
-        // Date found! Jump to it.
         const targetIndex = dateIndexMap[selectedDate];
         clearSearchUI();
         
@@ -336,13 +339,11 @@ datePicker.addEventListener('change', function(e) {
         
         chatContainer.scrollTop = 0;
     } else {
-        // Date not found in chat memory
         showToast();
-        datePicker.value = ''; // Reset the input
+        datePicker.value = ''; 
     }
 });
 
-// --- SEARCH ENGINE LOGIC ---
 function executeSearch() {
     const query = searchInput.value.trim();
     if (!query) return;
@@ -438,7 +439,6 @@ clearBtn.addEventListener('click', () => {
     renderNextBatch();
 });
 
-// --- TOGGLE SEARCH BOX ---
 const searchToggleBtn = document.getElementById('searchToggleBtn');
 const searchBoxContainer = document.getElementById('searchBoxContainer');
 
@@ -451,7 +451,6 @@ searchToggleBtn.addEventListener('click', () => {
     }
 });
 
-// --- BIDIRECTIONAL INFINITE SCROLL ---
 chatContainer.addEventListener('scroll', () => {
     const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
     if (isNearBottom && currentBottomRenderedIndex < parsedMessages.length) {
