@@ -3,13 +3,13 @@ let currentlyRenderedIndex = 0;
 const BATCH_SIZE = 300;
 let mediaMap = {}; 
 let lastParsedDate = null;
+let availableDates = []; // NEW: Tracks all dates for the dropdown
 
 // Search State Variables
 let searchResults = [];
 let currentSearchIndex = -1;
 let activeQuery = '';
 
-// UPDATED REGEX: Splits Date (Match 1) and Time (Match 2)
 const msgRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[, ]+([^\]]+)\]?\s*(?:-)?\s*(.*?):\s*(.*)$/;
 const sysRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[, ]+([^\]]+)\]?\s*(?:-)?\s*(.*)$/;
 
@@ -20,6 +20,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearBtn = document.getElementById('clearBtn');
 const searchResultText = document.getElementById('searchResultText');
+const dateSelect = document.getElementById('dateSelect');
 
 document.getElementById('zipFile').addEventListener('change', async function(e) {
     const file = e.target.files[0];
@@ -32,13 +33,16 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
 
     container.innerHTML = '';
     parsedMessages = [];
+    availableDates = [];
     currentlyRenderedIndex = 0;
     mediaMap = {};
     lastParsedDate = null;
     
     searchInput.disabled = true;
     searchBtn.disabled = true;
+    dateSelect.disabled = true;
     clearSearchUI();
+    dateSelect.innerHTML = '<option value="">Jump to Date...</option>';
 
     progressContainer.style.display = 'block';
     statusText.innerText = 'Unzipping archive...';
@@ -81,11 +85,20 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
         const lines = textContent.split('\n');
         lines.forEach(line => processLine(line.trim()));
 
+        // Populate Date Dropdown
+        availableDates.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.index;
+            opt.innerText = d.text;
+            dateSelect.appendChild(opt);
+        });
+
         progressBar.style.width = '100%';
         statusText.innerText = `Loaded ${parsedMessages.length.toLocaleString()} items.`;
         
         searchInput.disabled = false;
         searchBtn.disabled = false;
+        dateSelect.disabled = false;
         
         setTimeout(() => {
             progressContainer.style.display = 'none';
@@ -102,20 +115,19 @@ function processLine(line) {
     if (!line) return;
     const match = line.match(msgRegex);
     if (match) {
-        const currentDate = match[1].trim(); // Captures just the date
-        const timeOnly = match[2].trim();    // Captures just the time
+        const currentDate = match[1].trim(); 
+        const timeOnly = match[2].trim();    
         const sender = match[3].trim();
         const text = match[4];
 
         if (currentDate !== lastParsedDate) {
             lastParsedDate = currentDate;
             parsedMessages.push({ type: 'date', dateText: currentDate });
+            // Store the global index so we can jump straight to it
+            availableDates.push({ text: currentDate, index: parsedMessages.length - 1 });
         }
         
-        // Identity check: Himanshu is always on the right side
         const isRight = sender.toLowerCase().includes('himanshu');
-        
-        // Push only the timeOnly variable into the message bubble
         parsedMessages.push({ type: 'msg', timestamp: timeOnly, sender: sender, text: text, isRight: isRight });
     } else {
         const sysMatch = line.match(sysRegex);
@@ -172,7 +184,6 @@ function checkAndRenderMedia(text, highlightRegex) {
     let quotedHTML = '';
     let processingText = text;
     
-    // Parse Android-style Quotes
     if (processingText.startsWith('> ')) {
         const lines = processingText.split('\n');
         let quoteLines = [];
@@ -194,7 +205,6 @@ function checkAndRenderMedia(text, highlightRegex) {
             processingText = replyLines.join('\n').trim();
         }
     } 
-    // Parse iOS-style Quotes
     else if (processingText.startsWith('“') && processingText.includes('”\n')) {
         const splitIndex = processingText.indexOf('”\n');
         const quotePart = processingText.substring(1, splitIndex);
@@ -252,6 +262,24 @@ function escapeHtml(str) {
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
+
+// --- JUMP TO DATE LOGIC ---
+dateSelect.addEventListener('change', function(e) {
+    const targetIndex = parseInt(e.target.value);
+    if (isNaN(targetIndex)) return;
+
+    // Clear search UI if jumping by date
+    clearSearchUI();
+    
+    const container = document.getElementById('chat-container');
+    container.innerHTML = '';
+    
+    currentlyRenderedIndex = targetIndex;
+    renderNextBatch();
+    
+    // Smoothly ensure we are at the top of the newly rendered container
+    container.scrollTop = 0;
+});
 
 // --- SEARCH ENGINE LOGIC ---
 function executeSearch() {
@@ -353,27 +381,25 @@ clearBtn.addEventListener('click', () => {
     renderNextBatch();
 });
 
-const chatContainer = document.getElementById('chat-container');
-chatContainer.addEventListener('scroll', () => {
-    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
-    
-    if (isNearBottom && currentlyRenderedIndex < parsedMessages.length) {
-        renderNextBatch();
-    }
-});
-
-// --- SEARCH BAR TOGGLE LOGIC ---
+// --- TOGGLE SEARCH BOX ---
 const searchToggleBtn = document.getElementById('searchToggleBtn');
 const searchBoxContainer = document.getElementById('searchBoxContainer');
 
 searchToggleBtn.addEventListener('click', () => {
     if (searchBoxContainer.style.display === 'none' || searchBoxContainer.style.display === '') {
         searchBoxContainer.style.display = 'flex';
-        // Auto-focus the input if a file has been loaded
-        if (!searchInput.disabled) {
-            searchInput.focus();
-        }
+        if (!searchInput.disabled) searchInput.focus();
     } else {
         searchBoxContainer.style.display = 'none';
+    }
+});
+
+// --- INFINITE SCROLL LOGIC ---
+const chatContainer = document.getElementById('chat-container');
+chatContainer.addEventListener('scroll', () => {
+    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+    
+    if (isNearBottom && currentlyRenderedIndex < parsedMessages.length) {
+        renderNextBatch();
     }
 });
