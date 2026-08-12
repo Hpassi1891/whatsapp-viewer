@@ -266,4 +266,23 @@ mark {
     background-color: #fff3e0 !important;
     transition: background-color 0.5s ease-out;
 }
-
+/* --- Quoted/Replied Message Styles --- */
+.quoted-msg {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-left: 4px solid #00a884;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #54656f;
+    white-space: pre-wrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.right .quoted-msg {
+    border-left-color: #029676;
+    background-color: rgba(0, 0, 0, 0.06);
+}
