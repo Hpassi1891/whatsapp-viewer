@@ -9,8 +9,9 @@ let searchResults = [];
 let currentSearchIndex = -1;
 let activeQuery = '';
 
-const msgRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}[, ]+[\d:\s]+(?:AM|PM|am|pm)?)\]?\s*(?:-)?\s*(.*?):\s*(.*)$/;
-const sysRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}[, ]+[\d:\s]+(?:AM|PM|am|pm)?)\]?\s*(?:-)?\s*(.*)$/;
+// UPDATED REGEX: Splits Date (Match 1) and Time (Match 2)
+const msgRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[, ]+([^\]]+)\]?\s*(?:-)?\s*(.*?):\s*(.*)$/;
+const sysRegex = /^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[, ]+([^\]]+)\]?\s*(?:-)?\s*(.*)$/;
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -101,27 +102,25 @@ function processLine(line) {
     if (!line) return;
     const match = line.match(msgRegex);
     if (match) {
-        const timestamp = match[1];
-        const sender = match[2];
-        const text = match[3];
+        const currentDate = match[1].trim(); // Captures just the date
+        const timeOnly = match[2].trim();    // Captures just the time
+        const sender = match[3].trim();
+        const text = match[4];
 
-        const dateMatch = timestamp.match(/^(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})/);
-        if (dateMatch) {
-            const currentDate = dateMatch[1];
-            if (currentDate !== lastParsedDate) {
-                lastParsedDate = currentDate;
-                parsedMessages.push({ type: 'date', dateText: currentDate });
-            }
+        if (currentDate !== lastParsedDate) {
+            lastParsedDate = currentDate;
+            parsedMessages.push({ type: 'date', dateText: currentDate });
         }
         
-        // HARDCODED IDENTITY: Rakshas is always on the right.
+        // Identity check: Himanshu is always on the right side
         const isRight = sender.toLowerCase().includes('himanshu');
         
-        parsedMessages.push({ type: 'msg', timestamp: timestamp, sender: sender, text: text, isRight: isRight });
+        // Push only the timeOnly variable into the message bubble
+        parsedMessages.push({ type: 'msg', timestamp: timeOnly, sender: sender, text: text, isRight: isRight });
     } else {
         const sysMatch = line.match(sysRegex);
         if (sysMatch && parsedMessages.length === 0) {
-            parsedMessages.push({ type: 'sys', text: sysMatch[2] });
+            parsedMessages.push({ type: 'sys', text: sysMatch[3] });
         } else if (parsedMessages.length > 0) {
             parsedMessages[parsedMessages.length - 1].text += '\n' + line;
         }
