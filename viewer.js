@@ -2,9 +2,9 @@ let parsedMessages = [];
 let currentTopRenderedIndex = 0;
 let currentBottomRenderedIndex = 0;
 const BATCH_SIZE = 300;
-let mediaMap = {}; 
 let lastParsedDate = null;
 let dateIndexMap = {}; 
+let availableDates = [];
 
 // Search State Variables
 let searchResults = [];
@@ -25,7 +25,7 @@ const datePicker = document.getElementById('datePicker');
 const chatContainer = document.getElementById('chat-container');
 const toastMsg = document.getElementById('toast-msg');
 
-document.getElementById('zipFile').addEventListener('change', async function(e) {
+document.getElementById('txtFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -36,9 +36,9 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     chatContainer.innerHTML = '';
     parsedMessages = [];
     dateIndexMap = {};
+    availableDates = [];
     currentTopRenderedIndex = 0;
     currentBottomRenderedIndex = 0;
-    mediaMap = {};
     lastParsedDate = null;
     
     searchInput.disabled = true;
@@ -48,46 +48,18 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
     clearSearchUI();
 
     progressContainer.style.display = 'block';
-    // Make sure status text is visible again for a new upload
     statusText.style.display = 'block'; 
-    statusText.innerText = 'Unzipping archive...';
-    progressBar.style.width = '10%';
+    statusText.innerText = 'Reading text file...';
+    progressBar.style.width = '40%';
 
-    try {
-        const zip = await JSZip.loadAsync(file);
-        let chatFile = null;
-
-        const zipKeys = Object.keys(zip.files);
-        let processedFiles = 0;
-
-        for (let filename of zipKeys) {
-            const entry = zip.files[filename];
-            if (entry.dir) continue;
-            const cleanFileName = filename.split('/').pop();
-
-            if (cleanFileName.endsWith('.txt') && !cleanFileName.startsWith('.')) {
-                chatFile = entry;
-            } else {
-                const blob = await entry.async('blob');
-                mediaMap[cleanFileName] = URL.createObjectURL(blob);
-            }
-
-            processedFiles++;
-            const pct = Math.round((processedFiles / zipKeys.length) * 50);
-            progressBar.style.width = (10 + pct) + '%';
-            statusText.innerText = `Extracting files (${processedFiles}/${zipKeys.length})...`;
-        }
-
-        if (!chatFile) {
-            alert('No .txt chat file found inside the uploaded zip archive.');
-            return;
-        }
-
+    const reader = new FileReader();
+    reader.onload = function(e) {
         statusText.innerText = 'Parsing chat messages...';
-        progressBar.style.width = '70%';
-
-        const textContent = await chatFile.async('string');
+        progressBar.style.width = '80%';
+        
+        const textContent = e.target.result;
         const lines = textContent.split('\n');
+        
         lines.forEach(line => processLine(line.trim()));
 
         progressBar.style.width = '100%';
@@ -104,20 +76,14 @@ document.getElementById('zipFile').addEventListener('change', async function(e) 
         }
         
         // Hide progress bar after 1 second
-        setTimeout(() => {
-            progressContainer.style.display = 'none';
-        }, 1000);
-
-        // NEW: Hide status text after 5 seconds
-        setTimeout(() => {
-            statusText.style.display = 'none';
-        }, 5000);
+        setTimeout(() => { progressContainer.style.display = 'none'; }, 1000);
+        
+        // Hide status text after 5 seconds
+        setTimeout(() => { statusText.style.display = 'none'; }, 5000);
 
         renderNextBatch();
-
-    } catch (err) {
-        alert('Failed to process zip file. Make sure it is a valid ZIP archive.');
-    }
+    };
+    reader.readAsText(file);
 });
 
 function normalizeDate(waDateStr) {
@@ -190,11 +156,75 @@ function createMessageNode(item, i, highlightRegex) {
 
         const senderSpan = `<span class="sender-name">${escapeHtml(item.sender)}</span>`;
         const timeSpan = `<span class="time">${escapeHtml(item.timestamp)}</span>`;
-        const mediaContent = checkAndRenderMedia(item.text, highlightRegex);
+        const textContent = formatMessageText(item.text, highlightRegex);
 
-        div.innerHTML = senderSpan + mediaContent + timeSpan;
+        div.innerHTML = senderSpan + textContent + timeSpan;
         return div;
     }
+}
+
+function formatMessageText(text, highlightRegex) {
+    let quotedHTML = '';
+    let processingText = text;
+    
+    if (processingText.startsWith('> ')) {
+        const lines = processingText.split('\n');
+        let quoteLines = [];
+        let replyLines = [];
+        let isQuote = true;
+        
+        for (let l of lines) {
+            if (isQuote && l.startsWith('> ')) {
+                quoteLines.push(l.substring(2));
+            } else if (isQuote && l.startsWith('>')) { 
+                quoteLines.push(l.substring(1));
+            } else {
+                isQuote = false;
+                replyLines.push(l);
+            }
+        }
+        if (quoteLines.length > 0) {
+            quotedHTML = `<div class="quoted-msg">${escapeHtml(quoteLines.join('\n'))}</div>`;
+            processingText = replyLines.join('\n').trim();
+        }
+    } 
+    else if (processingText.startsWith('“') && processingText.includes('”\n')) {
+        const splitIndex = processingText.indexOf('”\n');
+        const quotePart = processingText.substring(1, splitIndex);
+        const replyPart = processingText.substring(splitIndex + 2);
+        
+        quotedHTML = `<div class="quoted-msg">${escapeHtml(quotePart)}</div>`;
+        processingText = replyPart.trim();
+    }
+
+    // Clean up WhatsApp media tags with neat emojis
+    processingText = processingText.replace(/image omitted/gi, '📷 Image omitted')
+                                   .replace(/video omitted/gi, '🎥 Video omitted')
+                                   .replace(/sticker omitted/gi, '🎫 Sticker omitted')
+                                   .replace(/<Media omitted>/gi, '📷 Media omitted')
+                                   .replace(/.*?\.(jpg|jpeg|png|gif|mp4|opus|m4a|pdf|docx?)\s*\(file attached\)/gi, '📎 File attached');
+
+    let renderedHTML = '';
+    if (processingText || quotedHTML) {
+        let escapedText = escapeHtml(processingText);
+        if (highlightRegex && escapedText) {
+            escapedText = escapedText.replace(highlightRegex, '<mark>$1</mark>');
+        }
+        renderedHTML += quotedHTML;
+        if (escapedText) {
+            renderedHTML += `<span class="msg-text">${escapedText}</span>`;
+        }
+    }
+
+    return renderedHTML;
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
 
 function renderNextBatch() {
@@ -232,89 +262,6 @@ function renderPrevBatch() {
     const newScrollHeight = chatContainer.scrollHeight;
     chatContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
     currentTopRenderedIndex = startIndex;
-}
-
-function checkAndRenderMedia(text, highlightRegex) {
-    let quotedHTML = '';
-    let processingText = text;
-    
-    if (processingText.startsWith('> ')) {
-        const lines = processingText.split('\n');
-        let quoteLines = [];
-        let replyLines = [];
-        let isQuote = true;
-        
-        for (let l of lines) {
-            if (isQuote && l.startsWith('> ')) {
-                quoteLines.push(l.substring(2));
-            } else if (isQuote && l.startsWith('>')) { 
-                quoteLines.push(l.substring(1));
-            } else {
-                isQuote = false;
-                replyLines.push(l);
-            }
-        }
-        if (quoteLines.length > 0) {
-            quotedHTML = `<div class="quoted-msg">${escapeHtml(quoteLines.join('\n'))}</div>`;
-            processingText = replyLines.join('\n').trim();
-        }
-    } 
-    else if (processingText.startsWith('“') && processingText.includes('”\n')) {
-        const splitIndex = processingText.indexOf('”\n');
-        const quotePart = processingText.substring(1, splitIndex);
-        const replyPart = processingText.substring(splitIndex + 2);
-        
-        quotedHTML = `<div class="quoted-msg">${escapeHtml(quotePart)}</div>`;
-        processingText = replyPart.trim();
-    }
-
-    let renderedMedia = '';
-    let foundMediaKey = null;
-
-    for (let key of Object.keys(mediaMap)) {
-        if (processingText.includes(key)) {
-            foundMediaKey = key;
-            break;
-        }
-    }
-
-    let cleanText = processingText;
-    if (foundMediaKey) {
-        const mediaUrl = mediaMap[foundMediaKey];
-        const ext = foundMediaKey.split('.').pop().toLowerCase();
-
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-            renderedMedia += `<img src="${mediaUrl}" class="media-preview" alt="attachment" />`;
-        } else if (['mp4', 'webm', 'mov'].includes(ext)) {
-            renderedMedia += `<video src="${mediaUrl}" controls class="media-preview"></video>`;
-        } else if (['opus', 'ogg', 'mp3', 'wav', 'm4a'].includes(ext)) {
-            renderedMedia += `<audio src="${mediaUrl}" controls class="media-preview"></audio>`;
-        } else {
-            renderedMedia += `<a href="${mediaUrl}" download="${foundMediaKey}" class="doc-link">📄 ${escapeHtml(foundMediaKey)}</a>`;
-        }
-        cleanText = processingText.replace(foundMediaKey, '').replace('(file attached)', '').replace('<attached:', '').replace('>', '').trim();
-    }
-
-    if (cleanText || quotedHTML) {
-        let escapedText = escapeHtml(cleanText);
-        if (highlightRegex && escapedText) {
-            escapedText = escapedText.replace(highlightRegex, '<mark>$1</mark>');
-        }
-        renderedMedia += quotedHTML;
-        if (escapedText) {
-            renderedMedia += `<span class="msg-text">${escapedText}</span>`;
-        }
-    }
-
-    return renderedMedia;
-}
-
-function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 }
 
 function showToast() {
