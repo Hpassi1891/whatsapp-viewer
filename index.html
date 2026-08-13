@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Chat Viewer">
     
-    <title>WhatsApp Zip Chat Viewer</title>
+    <title>WhatsApp Chat Viewer</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -23,13 +23,13 @@
     </header>
     
     <div class="controls">
-        <label for="zipFile" class="file-label">Upload .zip</label>
-        <input type="file" id="zipFile" accept=".zip">
+        <label for="txtFile" class="file-label">Upload .txt</label>
+        <input type="file" id="txtFile" accept=".txt">
         
         <!-- Search Toggle -->
         <button id="searchToggleBtn" title="Toggle Search">🔍</button>
         
-        <!-- NEW: Calendar Date Picker -->
+        <!-- Calendar Date Picker -->
         <input type="date" id="datePicker" disabled title="Select a date to jump">
 
         <div style="margin-left: auto; font-size: 13px; color: #54656f; font-weight: 500; background: #fff; padding: 6px 10px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
@@ -48,15 +48,14 @@
         <div id="progress-bar-container" style="width: 100%; margin-top: 10px;">
             <div id="progress-bar"></div>
         </div>
-        <span id="status-text" style="width: 100%; margin-top: 5px;">Select your exported WhatsApp .zip file...</span>
+        <span id="status-text" style="width: 100%; margin-top: 5px;">Select your exported WhatsApp .txt file...</span>
     </div>
 
     <div id="chat-container"></div>
     
-    <!-- NEW: Pop-up Error Message -->
+    <!-- Pop-up Error Message -->
     <div id="toast-msg">No chats available on the entered date</div>
 
-    <script src="jszip.min.js"></script>
     <script src="viewer.js"></script>
 </body>
 </html>
